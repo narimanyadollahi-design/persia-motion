@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>persia-motion reel</title>
+<style>
+/*FONTS*/
+:root{--paper:#F4F1EA;--ink:#0E0E10;--acc:#FF5B2E;--gray:#D9D5CB}  /* overridden from project.json brand.colors at load */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:720px;height:1280px;overflow:hidden;background:#000}
+body{font-family:V,Tahoma,sans-serif}
+.stage{position:relative;width:720px;height:1280px;overflow:hidden}
+.sc{position:absolute;inset:0;background:var(--bg);color:var(--fg);--bg:var(--paper);--fg:var(--ink)}
+.sc.dark{--bg:var(--ink);--fg:var(--paper)}
+.sc.acc{--bg:var(--acc);--fg:var(--ink)}
+.mono{font-family:Consolas,"Courier New",monospace;direction:ltr;font-size:15px;letter-spacing:.06em;font-weight:700;opacity:.55;position:absolute}
+.hl{position:absolute;right:48px;top:128px;width:624px;font-weight:800;font-size:58px;line-height:1.35;text-align:right}
+.hl .ln{display:block;white-space:nowrap}
+.hl .w{display:inline-block;margin-left:.22em;opacity:0;will-change:transform,opacity}
+u{text-decoration:none;color:var(--acc)}
+.acc u{color:var(--ink)}
+.win{position:absolute;left:40px;right:40px;top:430px;height:520px;background:#fff;border-radius:26px;box-shadow:0 30px 80px rgba(0,0,0,.18);border:1px solid rgba(0,0,0,.06);color:var(--ink);overflow:hidden;direction:rtl}
+.dark .win{background:#1B1B1F;color:var(--paper);border-color:#2c2c33;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.bar{height:56px;border-bottom:1px solid rgba(0,0,0,.07);display:flex;align-items:center;gap:8px;padding:0 20px;font-weight:800;font-size:19px}
+.dark .bar{border-color:#2c2c33}
+.bar i{width:12px;height:12px;border-radius:50%;background:#ddd;display:block}
+.sub{position:absolute;left:36px;right:36px;top:1096px;display:flex;flex-wrap:wrap;justify-content:flex-start;gap:0 14px;font-weight:800;font-size:40px;line-height:1.5;direction:rtl}
+.sub span{opacity:0;transform:translateY(10px)}
+.tl{position:absolute;left:48px;right:48px;top:1030px;height:30px}
+.tl .base{position:absolute;left:0;right:0;top:14px;height:2px;background:currentColor;opacity:.16}
+.tl .fill{position:absolute;left:0;top:13px;height:4px;background:currentColor;width:0}
+.tl .d{position:absolute;top:8px;width:14px;height:14px;background:currentColor;opacity:.25;border-radius:3px}
+.tl .t{position:absolute;left:0;top:34px;direction:ltr}
+.cur{position:absolute;width:34px;height:34px;left:0;top:0;z-index:20;filter:drop-shadow(0 4px 6px rgba(0,0,0,.3))}
+.rip{position:absolute;width:20px;height:20px;border-radius:50%;border:3px solid var(--acc);z-index:19;opacity:0}
+.card{background:#fff;border-radius:18px;border:1px solid rgba(0,0,0,.08);position:absolute}
+.chip{display:inline-block;padding:10px 24px;border-radius:999px;background:var(--ink);color:var(--paper);font-weight:800;font-size:28px}
+.skel{height:14px;border-radius:7px;background:rgba(0,0,0,.1)}
+.abs{position:absolute}
+</style>
+</head>
+<body>
+<div class="stage" id="stage"></div>
+<script>
+const TIM = /*TIMING*/null;
+const PROJECT = /*PROJECT*/null;
+const B = PROJECT.brand, C = PROJECT.copy;
+Object.entries(B.colors).forEach(([k,v])=>document.documentElement.style.setProperty("--"+k,v));
+const FA = n => String(n).replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]);
+const clamp = (x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const P = (t,a,b)=>clamp((t-a)/(b-a));
+const eo = x=>1-Math.pow(1-x,3);
+const eio = x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const eb = x=>{const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)};
+
+// ---- timeline from audio durations ----
+const GAP=.4, S=[]; let acc=.5;
+TIM.forEach(l=>{S.push(acc);acc+=l.dur+GAP});
+const END = S[6]+TIM[6].dur+.35, DUR = END+2.7;
+const W=(i,k)=>TIM[i].words[Math.min(k,TIM[i].words.length-1)].s;
+const CHAP=B.chapters;
+const CSTART=[...S,END];
+window.SFX=[];
+CSTART.forEach((t,i)=>SFX.push({t:t-.05,k:"whoosh"}));
+
+const stage=document.getElementById("stage");
+const CUR='<svg viewBox="0 0 34 34"><path d="M5 3 L5 27 L11 21 L15.5 31 L19.5 29 L15 19.5 L24 19.5 Z" fill="#111" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/></svg>';
+const scenes=[];
+const origin=[[360,820],[360,760],[200,780],[360,800],[360,760],[360,780],[360,800],[360,800]];
+
+function mk(i,cls,label,html){
+  const el=document.createElement("div");el.className="sc "+cls;el.style.zIndex=i+1;
+  el.innerHTML=`<div class="mono" style="left:48px;top:48px">${B.hud}</div><div class="mono" style="right:48px;top:48px">${CHAP[i]}</div>
+  <div class="tl"><div class="base"></div><div class="fill"></div>${CSTART.slice(0,7).map((_,k)=>`<div class="d" style="left:${(k/6*100)}%"></div>`).join("")}<div class="mono t" style="opacity:.55;top:30px">0s</div></div>`+html;
+  stage.appendChild(el);
+  const sc={el,i,hl:[...el.querySelectorAll(".hl .w")],fill:el.querySelector(".fill"),dots:[...el.querySelectorAll(".tl .d")],t:el.querySelector(".t")};
+  if(i<7){const sub=document.createElement("div");sub.className="sub";sub.innerHTML=TIM[i].words.map(w=>`<span>${w.w}</span>`).join("");el.appendChild(sub);sc.sub=[...sub.children]}
+  scenes.push(sc);return sc;
+}
+const AC=w=>w.replace(/\*(.*?)\*/g,"<u>$1</u>");
+const H=(lines)=>`<div class="hl">${lines.map(l=>`<span class="ln">${l.split(" ").map(w=>`<span class="w">${AC(w)}</span>`).join("")}</span>`).join("")}</div>`;
+const cursorEl=(sc)=>{const c=document.createElement("div");c.className="cur";c.innerHTML=CUR;sc.el.appendChild(c);sc.cur=c;sc.rips=[]};
+function ripple(sc){const r=document.createElement("div");r.className="rip";sc.el.appendChild(r);sc.rips.push(r)}
+// cursor keyframes [t,x,y,click]
+function moveCursor(sc,lt,keys){
+  if(!sc.cur)return;
+  let x=keys[0][1],y=keys[0][2];
+  if(lt<=keys[0][0]){sc.cur.style.opacity=0}else sc.cur.style.opacity=1;
+  for(let k=1;k<keys.length;k++){
+    const a=keys[k-1],b=keys[k];
+    if(lt>=a[0]&&lt<b[0]){const u=eio(P(lt,a[0],b[0]));x=a[1]+(b[1]-a[1])*u;y=a[2]+(b[2]-a[2])*u}
+    else if(lt>=b[0]){x=b[1];y=b[2]}
+  }
+  let sc2=1;
+  keys.forEach((k,idx)=>{if(k[3]){const u=lt-k[0];if(u>-.08&&u<.18)sc2=.82}});
+  sc.cur.style.transform=`translate(${x}px,${y}px) scale(${sc2})`;
+  let n=0;keys.forEach(k=>{if(k[3]){const r=sc.rips[n++];if(!r)return;const u=P(lt,k[0],k[0]+.5);r.style.opacity=u>0&&u<1?1-u:0;r.style.left=(k[1]-10+3)+"px";r.style.top=(k[2]-10+3)+"px";r.style.transform=`scale(${1+u*3})`}});
+}
+function clicksOf(keys,base){keys.forEach(k=>{if(k[3])SFX.push({t:base+k[0],k:"click"})})}
+
+// ===== Scene 0 : hook =====
+const s0=mk(0,"", "",`${H(C.s0.h)}
+<div class="win" id="w0"><div class="bar"><i></i><i></i><i></i><span style="margin-right:12px">${C.s0.window}</span></div>
+${[0,1,2,3,4,5].map(n=>`<div class="card g0" style="left:${28+(n%3)*(0)}px;"></div>`).join("")}
+<div class="abs" id="q0" style="left:50%;top:50%;margin:-90px 0 0 -90px;width:180px;height:180px;border-radius:50%;background:var(--acc);color:#fff;font-size:120px;font-weight:800;text-align:center;line-height:170px;opacity:0">${C.s0.bubble}</div></div>`);
+(()=>{const w=document.getElementById("w0");const cards=[...w.querySelectorAll(".g0")];
+ cards.forEach((c,n)=>{const col=n%3,row=(n/3)|0;Object.assign(c.style,{left:(28+col*186)+"px",top:(84+row*208)+"px",width:"170px",height:"192px"});
+ c.innerHTML=`<div style="width:54px;height:54px;border-radius:50%;background:#e2ded3;margin:18px 18px 14px auto"></div><div class="skel" style="margin:0 18px 10px;width:60%;margin-right:18px"></div><div class="skel" style="margin:0 18px 10px;width:80%;margin-right:18px"></div><div class="skel" style="margin:0 18px;width:45%;margin-right:18px"></div>`});
+ s0.cards=cards})();
+cursorEl(s0);ripple(s0);
+const K0=[[0.6,300,760,0],[1.4,560,640,0],[2.2,420,830,0],[2.9,330,700,1]];
+clicksOf(K0,S[0]);
+
+// ===== Scene 1 : problem =====
+const s1=mk(1,"dark","",`${H(C.s1.h)}
+<div class="abs" id="strike1" style="right:48px;top:186px;height:7px;background:var(--acc);width:0;border-radius:4px"></div>
+<div class="win" style="top:450px;height:480px">
+<div class="card" style="position:absolute;left:30px;right:30px;top:36px;height:130px;background:#26262c;border-color:#34343c"><div class="abs" style="right:28px;top:22px;font-weight:800;font-size:34px">${C.s1.card1}</div><div class="abs" id="ck1" style="left:28px;top:26px;width:76px;height:76px;border-radius:50%;background:#2dbd6e;color:#fff;font-size:46px;text-align:center;line-height:76px">✓</div><div class="skel" style="position:absolute;right:28px;top:84px;width:42%;background:#3c3c45"></div></div>
+<div class="card" id="id1" style="position:absolute;left:30px;right:30px;top:196px;height:230px;background:#26262c;border:2px dashed var(--acc)"><div class="abs" style="right:28px;top:22px;font-weight:800;font-size:34px">${C.s1.card2}</div><div class="abs" style="right:28px;top:84px;font-size:24px;opacity:.7">${C.s1.card2sub}</div>
+<div class="abs" style="right:28px;left:28px;bottom:36px;height:16px;border-radius:8px;background:#3c3c45;overflow:hidden"><div id="pb1" style="height:100%;width:0;background:var(--acc)"></div></div>
+<div class="abs mono" id="pc1" style="left:28px;bottom:62px;opacity:1;color:var(--acc)">0%</div></div></div>`);
+cursorEl(s1);ripple(s1);
+const K1=[[0.8,480,420,0],[1.8,300,440,0],[3.0,420,690,1],[4.2,420,700,0]];
+clicksOf(K1,S[1]);
+
+// ===== Scene 2 : me =====
+const s2=mk(2,"acc","",`${H(C.s2.h)}
+<div class="abs" id="av2" style="left:50%;top:470px;margin-left:-150px;width:300px;height:300px;border-radius:50%;background:var(--ink);color:var(--paper);font-size:170px;font-weight:800;text-align:center;line-height:300px">${B.monogram}</div>
+<div class="abs" id="ring2" style="left:50%;top:470px;margin-left:-150px;width:300px;height:300px;border-radius:50%;border:5px solid var(--ink)"></div>
+<div class="abs" id="nm2" style="left:0;right:0;top:810px;text-align:center;font-weight:800;font-size:56px">${B.name_fa}</div>
+<div class="abs" id="ch2" style="left:0;right:0;top:900px;text-align:center"><span class="chip">${C.s2.chips[0]}</span> <span class="chip" style="background:transparent;color:var(--ink);border:3px solid var(--ink)">${C.s2.chips[1]}</span></div>`);
+
+// ===== Scene 3 : audience =====
+const s3=mk(3,"","",`${H(C.s3.h)}
+<div class="win"><div class="bar"><i></i><i></i><i></i><span style="margin-right:12px">${C.s3.window}</span></div>
+<div class="abs" style="right:30px;top:84px;width:110px;height:110px;border-radius:50%;background:#e8e4da"><div class="abs" style="left:35px;top:20px;width:40px;height:40px;border-radius:50%;background:#bdb8aa"></div><div class="abs" style="left:20px;top:66px;width:70px;height:60px;border-radius:35px 35px 0 0;background:#bdb8aa"></div></div>
+${C.s3.fields.map((t,n)=>`<div class="abs" style="right:30px;left:30px;top:${224+n*92}px;height:76px;border-radius:16px;border:2px solid #e6e2d8;background:#faf8f3"><div class="abs" style="right:20px;top:18px;font-weight:800;font-size:26px">${t}</div><div class="abs f3" style="left:20px;top:30px;height:16px;border-radius:8px;background:var(--acc);width:0"></div><div class="abs" style="left:20px;top:30px;height:16px;border-radius:8px;background:rgba(0,0,0,.08);width:46%;z-index:0"></div></div>`).join("")}
+</div>`);
+s3.f=[...s3.el.querySelectorAll(".f3")];
+s3.f.forEach(f=>{f.style.zIndex=2});
+cursorEl(s3);[1,2,3].forEach(()=>ripple(s3));
+const K3=[[0.7,330,320,0],[1.2,300,500,1],[2.0,300,592,1],[2.8,300,684,1],[3.4,300,740,0]];
+clicksOf(K3,S[3]);
+
+// ===== Scene 4 : desire =====
+const s4=mk(4,"acc","",`${H(C.s4.h)}
+<div class="abs" id="cs4" style="left:0;right:0;top:420px;height:520px">
+${[0,1,2].map(n=>`<div class="card c4" style="width:200px;height:300px;left:${40+n*(220)}px;top:150px;background:#fff"><div style="margin:18px;height:150px;border-radius:12px;background:${["#e4dfd2","#0E0E10","#e4dfd2"][n]}"></div><div class="skel" style="margin:0 18px 10px;width:70%"></div><div class="skel" style="margin:0 18px;width:40%"></div></div>`).join("")}
+<div class="abs" id="hrt" style="left:268px;top:360px;font-size:78px;color:var(--acc);opacity:0;text-shadow:0 0 0 #fff;z-index:5">♥</div>
+<div class="abs" id="want" style="right:150px;top:90px;z-index:8"><span class="chip" style="font-size:30px">${C.s4.chip}</span></div></div>`);
+s4.cards=[...s4.el.querySelectorAll(".c4")];
+cursorEl(s4);ripple(s4);
+const K4=[[0.8,600,880,0],[1.8,420,620,0],[2.7,404,610,1],[3.6,404,610,0]];
+clicksOf(K4,S[4]);
+
+// ===== Scene 5 : long term =====
+const s5=mk(5,"dark","",`${H(C.s5.h)}
+<div class="abs" id="strike5" style="right:48px;top:186px;height:7px;background:var(--acc);width:0;border-radius:4px"></div>
+<div class="win" style="top:450px;height:470px"><div class="bar"><i></i><i></i><i></i><span style="margin-right:12px">${C.s5.window}</span></div>
+<svg class="abs" viewBox="0 0 600 372" style="left:20px;top:92px;width:600px;height:372px"><path id="path5" d="M20 300 C 140 290, 220 250, 290 200 S 470 90, 580 30" fill="none" style="stroke:var(--acc)" stroke-width="8" stroke-linecap="round" stroke-dasharray="700" stroke-dashoffset="700"/>
+<line x1="20" y1="316" x2="590" y2="316" stroke="#444" stroke-width="2"/>
+${C.s5.marks.map((t,n)=>`<g><circle cx="${40+n*270}" cy="316" r="9" style="fill:var(--acc)" class="m5"/><text x="${40+n*270}" y="342" fill="#bbb" font-size="22" text-anchor="middle" font-family="V">${t}</text></g>`).join("")}</svg></div>`);
+s5.m=[...s5.el.querySelectorAll(".m5")];
+
+// ===== Scene 6 : CTA =====
+const s6=mk(6,"","",`${H(C.s6.h)}
+<div class="win" style="top:450px;height:470px"><div class="bar"><i></i><i></i><i></i><span style="margin-right:12px">${C.s6.window}</span></div>
+<div class="abs" style="right:30px;left:30px;top:100px;height:84px;border-radius:42px;border:2px solid #e6e2d8;background:#faf8f3"><div class="abs" id="ty6" style="right:36px;top:16px;font-size:34px;font-weight:800"></div><div class="abs" id="sd6" style="left:14px;top:14px;width:56px;height:56px;border-radius:50%;background:var(--acc);color:#fff;text-align:center;line-height:54px;font-size:30px">➤</div></div>
+<div class="abs" id="dm6" style="right:30px;left:30px;top:230px;height:180px;border-radius:22px;background:var(--ink);color:var(--paper);padding:22px 26px;opacity:0"><div class="mono" style="position:static;opacity:.6;color:var(--acc)">DIRECT</div><div style="font-weight:800;font-size:32px;margin-top:10px;line-height:1.5">${C.s6.dm}</div></div>
+</div>`);
+cursorEl(s6);ripple(s6);
+const K6=[[0.8,100,330,0],[2.0,640,345,0]];
+// cursor click timing filled below after W() available
+K6.push([TIM[6].words[2].s+.1,100+0,0,0]);
+
+// ===== End card =====
+const s7=mk(7,"dark","",`<div class="abs" style="left:50%;top:330px;margin-left:-120px;width:240px;height:240px;border-radius:50%;background:var(--acc);color:var(--ink);font-size:140px;font-weight:800;text-align:center;line-height:240px" id="lg7">${B.monogram}</div>
+<div class="abs" style="left:0;right:0;top:620px;text-align:center;font-weight:800;font-size:64px" id="n7">${B.name_fa}</div>
+<div class="abs" style="left:0;right:0;top:720px;text-align:center;font-size:30px;opacity:.7" id="d7">${B.tagline}</div>
+<div class="abs" style="left:0;right:0;top:840px;text-align:center" id="c7"><span class="chip" style="background:var(--acc);color:var(--ink)">${C.s7.cta}</span></div>`);
+
+// fix scene 6 cursor keys: type at word 1, send click at word ~3
+const t6=S[6];
+const kTy=W(6,1)+.15, kSend=W(6,3)+.1;
+const K6b=[[0.6,120,300,0],[kTy,560,350,1],[kSend,646,355,1],[kSend+1.2,600,520,0]];
+clicksOf(K6b,t6);
+
+// ------------- seek -------------
+function seek(T){
+  // scene visibility with iris reveal
+  scenes.forEach((sc,i)=>{
+    const st=CSTART[i];
+    if(i===0){sc.el.style.display="block";sc.el.style.clipPath="none"}
+    else{
+      if(T<st-.12){sc.el.style.display="none";return}
+      sc.el.style.display="block";
+      const r=eo(P(T,st-.1,st+.55))*1700;
+      sc.el.style.clipPath=r>=1699?"none":`circle(${r}px at ${origin[i][0]}px ${origin[i][1]}px)`;
+    }
+    const lt=T-st;
+    // hud
+    const prog=clamp(T/DUR);
+    const lastI=i;
+    sc.fill.style.width=(prog*100)+"%";
+    sc.dots.forEach((d,k)=>d.style.opacity=T>=CSTART[k]?.95:.25);
+    sc.t.textContent=FA(0).replace("۰","")+Math.floor(T)+"s";
+    sc.t.textContent=Math.floor(T)+"s";
+    // headline
+    sc.hl.forEach((w,k)=>{const u=eo(P(lt,.05+k*.12,.05+k*.12+.45));w.style.opacity=u;w.style.transform=`translateY(${(1-u)*34}px)`});
+    // subtitles karaoke
+    if(sc.sub){TIM[i].words.forEach((w,k)=>{const u=P(lt,w.s-.02,w.s+.18);const el=sc.sub[k];el.style.opacity=u;el.style.transform=`translateY(${(1-u)*10}px)`;const active=lt>=w.s&&lt<w.e+.08;el.style.color=active?"var(--acc)":"inherit"})}
+  });
+  // per-scene
+  let lt=T-S[0];
+  // s0
+  s0.cards.forEach((c,n)=>{const u=eb(P(lt,.5+n*.12,.5+n*.12+.5));c.style.opacity=clamp(u);c.style.transform=`scale(${.7+.3*u})`;
+    const dim=P(lt,2.5,3.1);if(n!==4)c.style.opacity=clamp(u)*(1-.55*dim);if(n===4){c.style.borderColor=dim?"var(--acc)":"";c.style.borderStyle=dim?"dashed":"";c.style.borderWidth=dim?"3px":""}});
+  document.getElementById("q0").style.opacity=P(lt,3.0,3.2);
+  document.getElementById("q0").style.transform=`scale(${eb(P(lt,3.0,3.5))})`;
+  document.getElementById("q0").style.left="calc(50% + 0px)";
+  moveCursor(s0,lt,K0);
+  // s1
+  lt=T-S[1];
+  document.getElementById("strike1").style.width=(eo(P(lt,W(1,2)-.1,W(1,2)+.35))*470)+"px";
+  document.getElementById("ck1").style.transform=`scale(${eb(P(lt,.5,1.0))})`;
+  document.getElementById("pb1").style.width=(P(lt,2.4,4.4)*100)+"%";
+  document.getElementById("pc1").textContent=Math.round(P(lt,2.4,4.4)*100)+"%";
+  document.getElementById("id1").style.boxShadow=`0 0 ${30*Math.abs(Math.sin(lt*3))*P(lt,1.5,2)}px color-mix(in srgb,var(--acc) 60%,transparent)`;
+  moveCursor(s1,lt,K1);
+  // s2
+  lt=T-S[2];
+  document.getElementById("av2").style.transform=`scale(${eb(P(lt,.2,.9))})`;
+  document.getElementById("ring2").style.transform=`scale(${1+eo(P(lt,.6,1.6))*.35})`;
+  document.getElementById("ring2").style.opacity=1-P(lt,.6,1.6);
+  document.getElementById("nm2").style.opacity=eo(P(lt,W(2,1)-.1,W(2,1)+.3));
+  document.getElementById("nm2").style.transform=`translateY(${(1-eo(P(lt,W(2,1)-.1,W(2,1)+.4)))*30}px)`;
+  document.getElementById("ch2").style.opacity=eo(P(lt,W(2,2)-.1,W(2,2)+.3));
+  document.getElementById("ch2").style.transform=`scale(${.7+.3*eb(P(lt,W(2,2)-.1,W(2,2)+.5))})`;
+  // s3
+  lt=T-S[3];
+  s3.f.forEach((f,n)=>{f.style.width=(eo(P(lt,K3[n+1][0],K3[n+1][0]+.5))*"46".valueOf()*1)+"%"});
+  moveCursor(s3,lt,K3);
+  // s4
+  lt=T-S[4];
+  s4.cards.forEach((c,n)=>{const u=eb(P(lt,.3+n*.15,.9+n*.15));const sel=eo(P(lt,1.9,2.6));
+    c.style.opacity=clamp(u)*(n===1?1:1-.5*sel);
+    const sc=(.7+.3*u)*(n===1?1+.18*sel:1-.04*sel);
+    c.style.transform=`scale(${sc}) translateY(${n===1?-30*sel:0}px)`;c.style.zIndex=n===1?3:1});
+  const hr=document.getElementById("hrt");hr.style.opacity=P(lt,2.7,2.8);hr.style.transform=`translateY(${-eo(P(lt,2.7,3.6))*120}px) scale(${.6+eb(P(lt,2.7,3.2))*.8})`;
+  document.getElementById("want").style.opacity=eo(P(lt,2.9,3.2));
+  document.getElementById("want").style.transform=`scale(${eb(P(lt,2.9,3.4))})`;
+  moveCursor(s4,lt,K4);
+  // s5
+  lt=T-S[5];
+  document.getElementById("strike5").style.width=(eo(P(lt,W(5,1)-.1,W(5,1)+.4))*360)+"px";
+  document.getElementById("path5").style.strokeDashoffset=700*(1-eio(P(lt,W(5,4)-.2,W(5,4)+2.2)));
+  s5.m.forEach((m,n)=>{m.setAttribute("r",9+7*eb(P(lt,.6+n*1.2,1.2+n*1.2)))});
+  // s6
+  lt=T-S[6];
+  const word=C.s6.typed;const nTy=Math.floor(P(lt,kTy,kTy+.5)*word.length+.0001);
+  document.getElementById("ty6").textContent=word.slice(0,Math.min(nTy,word.length))+(lt>kTy&&lt<kSend?"|":"");
+  document.getElementById("sd6").style.transform=`scale(${lt>kSend-.08&&lt<kSend+.15?.8:1})`;
+  const dmU=eo(P(lt,kSend+.5,kSend+1.0));
+  const dm=document.getElementById("dm6");dm.style.opacity=dmU;dm.style.transform=`translateY(${(1-dmU)*40}px)`;
+  if(!s6.rips.length)ripple(s6);if(s6.rips.length<2)ripple(s6);
+  moveCursor(s6,lt,K6b);
+  // s7
+  lt=T-END;
+  const lg=document.getElementById("lg7");lg.style.transform=`scale(${eb(P(lt,.1,.8))})`;
+  [["n7",.5],["d7",.8],["c7",1.1]].forEach(([id,t0])=>{const e=document.getElementById(id);const u=eo(P(lt,t0,t0+.5));e.style.opacity=u;e.style.transform=`translateY(${(1-u)*30}px)`});
+}
+window.seek=seek;window.DUR=DUR;window.CSTART=CSTART;window.S=S;window.END=END;
+document.fonts.ready.then(()=>{seek(0);window.READY=true});
+</script>
+</body>
+</html>

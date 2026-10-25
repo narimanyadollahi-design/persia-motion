@@ -1,0 +1,27 @@
+{
+ "_note": "Neutral default identity. Replace every value with your brand (or let the skill ask you).",
+ "hud": "YOUR BRAND",
+ "name_fa": "نام برند شما",
+ "monogram": "ب",
+ "tagline": "شعار برند شما",
+ "colors": {
+  "paper": "#F5F5F2",
+  "ink": "#111214",
+  "acc": "#3B6CFF",
+  "gray": "#D8D8D2"
+ },
+ "fonts": {
+  "regular": "Vazirmatn-Regular.ttf",
+  "bold": "Vazirmatn-Bold.ttf"
+ },
+ "chapters": [
+  "01 / HOOK",
+  "02 / PROBLEM",
+  "03 / SOLUTION",
+  "04 / HOW",
+  "05 / DESIRE",
+  "06 / OUTCOME",
+  "07 / CALL TO ACTION",
+  "END"
+ ]
+}

@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+.env.local
+_built.html
+out/
+audio/
+probe/
