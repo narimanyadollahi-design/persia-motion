@@ -13,7 +13,7 @@ A Claude Code / agent skill that turns an idea or text into a **9:16 Persian mot
 
 ## Install
 ```bash
-npx skills add <your-github-user>/persia-motion
+npx skills add narimanyadollahi-design/persia-motion
 # or copy skills/persia-motion into ~/.claude/skills/
 pip install -r skills/persia-motion/requirements.txt
 python -m playwright install chromium   # or use installed Google Chrome
