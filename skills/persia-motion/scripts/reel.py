@@ -130,8 +130,8 @@ def step_render(pj, pd, a):
 def step_mix(pj, pd, a):
     tim = json.load(open(pd / "timing.json", encoding="utf8")); meta = json.load(open(pd / "meta.json"))
     D = meta["dur"]; out = pd / "out"; music = out / "music.wav"
-    starts, t = [], LEAD
-    for l in tim: starts.append(t); t += l["dur"] + GAP
+    starts, t = [], LEAD; hold = pj.get("hold", [])   # optional extra seconds after line i (template must read PROJECT.hold too)
+    for i, l in enumerate(tim): starts.append(t); t += l["dur"] + GAP + (hold[i] if i < len(hold) else 0)
     ff = ["ffmpeg", "-nostdin", "-v", "error", "-y"]
     # pass 1: voice track on the timeline
     inp, ch = [], []
@@ -143,7 +143,10 @@ def step_mix(pj, pd, a):
     # pass 2: voice + SFX (+ pad) (+ music ducked by the voice); voice file is read twice instead of asplit (asplit deadlocks here)
     inp = ["-i", str(out / "voice.wav")]; ch = []; lab = ["[0:a]"]; n = 1
     if music.exists(): inp += ["-i", str(out / "voice.wav"), "-i", str(music)]; n = 3
-    for j, e in enumerate(meta["sfx"]):
+    sfx_wav = out / "sfx.wav"   # per-element sound design from scripts/sfx.py replaces the basic whoosh/click
+    if sfx_wav.exists():
+        inp += ["-i", str(sfx_wav)]; ch.append(f"[{n}:a]aresample=48000,volume={pj.get('sfx_volume', 1.0)}[sx]"); lab.append("[sx]"); n += 1
+    for j, e in enumerate([] if sfx_wav.exists() else meta["sfx"]):
         ms = max(0, int(e["t"] * 1000))
         if e["k"] == "whoosh":
             inp += ["-f", "lavfi", "-t", "0.5", "-i", "anoisesrc=d=0.5:c=pink:r=48000:a=0.5"]
@@ -169,7 +172,8 @@ def step_mix(pj, pd, a):
 QC_JS = """(T)=>{seek(T);const out=[];
 const vis=[...document.querySelectorAll('.sc')].filter(e=>getComputedStyle(e).display!=='none');const sc=vis[vis.length-1];
 sc.querySelectorAll('.hl .w,.chip,#nm2,#d7,#ty6,.sub span,.bar span,#want,text').forEach(el=>{
- if(+getComputedStyle(el).opacity<.5||!el.textContent.trim())return;
+ if(+getComputedStyle(el).opacity<.5||getComputedStyle(el).visibility==='hidden'||!el.textContent.trim())return;
+ let q=el.parentElement,op=1;while(q){op*=+getComputedStyle(q).opacity;q=q.parentElement}if(op<.5)return;
  const r=el.getBoundingClientRect(); if(r.width<2||r.right<0||r.left>720)return;
  const top=document.elementsFromPoint(r.left+r.width/2,r.top+r.height/2)[0];
  if(top&&!(el===top||el.contains(top)||top.contains(el))) out.push([el.textContent.trim().slice(0,14),String(top.getAttribute('class')||top.tagName)]);

@@ -13,3 +13,9 @@
 12. Sidechain ducking: never `asplit` the voice into both the final mix and the compressor key in one graph (ffmpeg deadlocks); render voice.wav first and read it twice. Pad the key to the full length or the music stops at the last word.
 13. Measure the mix in segments (intro, mid, end card) — a silent end card is easy to miss by ear.
 14. Fix mispronunciations with diacritics on the spoken line and regenerate only that line.
+15. Multi-word accents (`*چک کن*`) break the per-word headline splitter — split the marker per word before splitting the line.
+16. Check that every scene still has its headline; a forgotten `${H(...)}` only shows in stills.
+17. A payoff that comes after the voice (fake vs real, stamp) needs a `hold`, or it lands on the last frame of the scene.
+18. Fast typing (~40 chars/s) with one key sound per char reads as real typing; slower than ~25 chars/s eats the scene.
+19. Typing must sound like a laptop/phone keyboard: a bright 2-7 kHz click (~4 ms) on key-down plus a quieter key-up click 45-75 ms later, with no low body. A low thump reads as tapping, not typing.
+20. STT cannot hear short vowels (گِل vs گُل): fix such words with a diacritic when a listener reports them, and do not treat an STT pass as proof.

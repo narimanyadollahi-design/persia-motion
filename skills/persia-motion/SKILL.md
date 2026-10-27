@@ -73,12 +73,16 @@ The 7-scene template (`template/index.html`) is a **starting point, not a mould*
 - **Music:** `python -X utf8 scripts/music.py <project> [--mode shur|esfahan|major] [--bpm 76]` writes `out/music.wav` (synthesized plucked strings with real quarter tones, drone, frame drum; arc follows the scene starts). Run it after `render` (needs `meta.json`), then `--steps mix,qc`. Set `"pad": false` and tune `"music_volume"` (default 0.55) in `project.json`; the mix ducks the music under the voice.
 - **Portrait on the end card:** set `brand.photo` (a square crop next to `project.json`); templates that support it show it in the circle instead of the monogram (see `examples/story-detail-macro/scene.html`). Use only a photo the user supplies.
 
+- **Sound design (every action has its own sound):** the template pushes `{t,k,g,p,pan}` into `window.SFX` (k = whoosh swish shutter flash pop tick type lock stamp flip paper buzz ding chime sparkle tap riser thud click). After `render`, run `python -X utf8 scripts/sfx.py <project>` → `out/sfx.wav`; the mix uses it instead of the basic whoosh/click. Typing = one `type` event per character; a lock clicks, a stamp thuds, a card flips, a calendar cell ticks with rising pitch (`p`). Tune `"sfx_volume"` in `project.json`.
+- **Pacing:** `"hold": [s0, s1, …]` adds seconds after line i so a visual payoff (stamp, comparison) has room after the voice; the template must add `PROJECT.hold[i]` to its scene starts too.
+- **CTA end card:** when the goal is a channel/page, the last spoken line can play over the end card (photo + headline + button + handle, cursor tap with a `tap` sound). Ask for the exact handle; never invent it.
+
 ## Scene types and copy fields (`project.json › copy`)
 `s0` {h[2], window, bubble} · `s1` {h[2], card1, card2, card2sub} · `s2` {h[2], chips[2]} · `s3` {h[2], window, fields[3]} · `s4` {h[1-2], chip} · `s5` {h[2], window, marks[3]} · `s6` {h[2], window, typed, dm} · `s7` {cta}. Brand tokens (`brand.json`): hud, name_fa, monogram, tagline, colors{paper,ink,acc,gray}, fonts, chapters[8].
 Timing constants (`LEAD 0.5s, GAP 0.4s, tail 2.7s`) must match between `template/index.html` and `scripts/reel.py`.
 
 ## Known limits
-Exactly 7 spoken lines/scenes + end card · monogram instead of image logo · no photo/screenshot scenes yet · synthetic pad instead of real music · voice naturalness can only be judged by a human ear · needs Chrome + ffmpeg.
+7-line default template (custom templates can use any number of lines) · monogram instead of image logo · no photo/screenshot scenes yet · synthetic pad instead of real music · voice naturalness can only be judged by a human ear · needs Chrome + ffmpeg.
 
 ## Files
 `template/index.html` scenes & animation (data-driven) · `scripts/reel.py` TTS→render→mix→QC · `brand/brand.json` neutral identity · `examples/sample-product/` fictional sample · `fonts/` Vazirmatn (OFL) · `LESSONS.md` pitfalls.
