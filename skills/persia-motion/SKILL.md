@@ -58,6 +58,21 @@ Then ask: "تأیید می‌کنی بسازم؟" Wait. Apply edits and re-show 
 4. Full build: `python -X utf8 .../reel.py <project> --engine edge` (or `--engine eleven --voice <id>`). Output: `<project>/out/reel.mp4` (1080×1920, 30 fps, −14 LUFS). The `qc` step must print `PASS`.
 5. Deliver the file and say honestly what you verified (frames, QC, STT of the voice) and what you could not (how the voice sounds, motion feel).
 
+
+## Design principle — the story chooses the visuals
+The 7-scene template (`template/index.html`) is a **starting point, not a mould**. For each new story, pick a visual metaphor that belongs to the subject and design new scenes when the template does not fit (copy `template/index.html` or an example, keep the contract: `/*TIMING*/`, `/*PROJECT*/`, `/*FONTS*/`, `window.seek/DUR/CSTART/SFX/READY`, `.sc` scenes, `.hl .w` headlines, `.sub span` subtitles), then render with `--template <file>`.
+- Give the film one **carrier element** that travels through scenes (viewfinder, cursor, loupe, light).
+- Motivate every transition (zoom *into* the detail, iris *from* the thing just touched, loupe that grows into the end card).
+- Sync key visual events to the spoken word that names them (`W(line, wordIndex)`).
+- If the user says there is no CTA (story/educational), end on the insight and a quiet signature card.
+- Example: `examples/story-detail-macro/` (instrument detail story: viewfinder, focus pull, raking light via SVG `feDiffuseLighting`, negative-prompt cross-out, quality stamp before price, loupe).
+
+
+## Voice pronunciation, music, portrait
+- **Pronunciation:** TTS guesses short vowels. When a word is misread (e.g. «لَنز» instead of «لِنز»), put the diacritics in the spoken line (`لِنزِ ماکرو`, `مُوَرَب`) and regenerate **only that line**; keep the plain text on screen if preferred. Ask the user to listen — STT cannot hear vowel errors.
+- **Music:** `python -X utf8 scripts/music.py <project> [--mode shur|esfahan|major] [--bpm 76]` writes `out/music.wav` (synthesized plucked strings with real quarter tones, drone, frame drum; arc follows the scene starts). Run it after `render` (needs `meta.json`), then `--steps mix,qc`. Set `"pad": false` and tune `"music_volume"` (default 0.55) in `project.json`; the mix ducks the music under the voice.
+- **Portrait on the end card:** set `brand.photo` (a square crop next to `project.json`); templates that support it show it in the circle instead of the monogram (see `examples/story-detail-macro/scene.html`). Use only a photo the user supplies.
+
 ## Scene types and copy fields (`project.json › copy`)
 `s0` {h[2], window, bubble} · `s1` {h[2], card1, card2, card2sub} · `s2` {h[2], chips[2]} · `s3` {h[2], window, fields[3]} · `s4` {h[1-2], chip} · `s5` {h[2], window, marks[3]} · `s6` {h[2], window, typed, dm} · `s7` {cta}. Brand tokens (`brand.json`): hud, name_fa, monogram, tagline, colors{paper,ink,acc,gray}, fonts, chapters[8].
 Timing constants (`LEAD 0.5s, GAP 0.4s, tail 2.7s`) must match between `template/index.html` and `scripts/reel.py`.

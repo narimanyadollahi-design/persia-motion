@@ -80,9 +80,9 @@ def step_tts(pj, pd, a):
 
 
 # ---------------------------------------------------------------- render
-def build_html(pj, pd):
+def build_html(pj, pd, template=None):
     tim = json.load(open(pd / "timing.json", encoding="utf8"))
-    html = (SKILL / "template" / "index.html").read_text(encoding="utf8")
+    html = pathlib.Path(template or (SKILL / "template" / "index.html")).read_text(encoding="utf8")
     fonts = pj["brand"].get("fonts", {"regular": "Vazirmatn-Regular.ttf", "bold": "Vazirmatn-Bold.ttf"})
     fdir = pd / "fonts"
     if not fdir.exists(): fdir = SKILL / "fonts"
@@ -97,7 +97,7 @@ def build_html(pj, pd):
 
 def step_render(pj, pd, a):
     from playwright.sync_api import sync_playwright
-    built = build_html(pj, pd); out = pd / "out"; out.mkdir(exist_ok=True)
+    built = build_html(pj, pd, a.template); out = pd / "out"; out.mkdir(exist_ok=True)
     with sync_playwright() as p:
         b = p.chromium.launch(channel="chrome")
         pg = b.new_page(viewport={"width": 720, "height": 1280}, device_scale_factor=1.5)
@@ -129,13 +129,20 @@ def step_render(pj, pd, a):
 # ---------------------------------------------------------------- mix
 def step_mix(pj, pd, a):
     tim = json.load(open(pd / "timing.json", encoding="utf8")); meta = json.load(open(pd / "meta.json"))
-    D = meta["dur"]; out = pd / "out"
+    D = meta["dur"]; out = pd / "out"; music = out / "music.wav"
     starts, t = [], LEAD
     for l in tim: starts.append(t); t += l["dur"] + GAP
-    inp, ch, lab, n = [], [], [], 0
+    ff = ["ffmpeg", "-nostdin", "-v", "error", "-y"]
+    # pass 1: voice track on the timeline
+    inp, ch = [], []
     for i, l in enumerate(tim):
         ms = int(starts[i] * 1000); inp += ["-i", l["file"]]
-        ch.append(f"[{n}:a]aresample=48000,volume=1.6,adelay={ms}|{ms}[v{i}]"); lab.append(f"[v{i}]"); n += 1
+        ch.append(f"[{i}:a]aresample=48000,volume=1.6,adelay={ms}|{ms}[v{i}]")
+    ch.append("".join(f"[v{i}]" for i in range(len(tim))) + f"amix=inputs={len(tim)}:normalize=0,apad=whole_dur={D},atrim=0:{D}[o]")
+    subprocess.check_call(ff + inp + ["-filter_complex", ";".join(ch), "-map", "[o]", "-ar", "48000", "-ac", "2", str(out / "voice.wav")])
+    # pass 2: voice + SFX (+ pad) (+ music ducked by the voice); voice file is read twice instead of asplit (asplit deadlocks here)
+    inp = ["-i", str(out / "voice.wav")]; ch = []; lab = ["[0:a]"]; n = 1
+    if music.exists(): inp += ["-i", str(out / "voice.wav"), "-i", str(music)]; n = 3
     for j, e in enumerate(meta["sfx"]):
         ms = max(0, int(e["t"] * 1000))
         if e["k"] == "whoosh":
@@ -145,14 +152,17 @@ def step_mix(pj, pd, a):
             inp += ["-f", "lavfi", "-t", "0.08", "-i", "sine=f=1400:d=0.08:r=48000"]
             ch.append(f"[{n}:a]afade=t=out:st=0.01:d=0.07,volume=0.45,adelay={ms}|{ms}[x{j}]")
         lab.append(f"[x{j}]"); n += 1
-    inp += ["-f", "lavfi", "-t", str(D), "-i", f"sine=f=110:d={D}:r=48000", "-f", "lavfi", "-t", str(D), "-i", f"sine=f=165:d={D}:r=48000"]
-    ch.append(f"[{n}:a][{n+1}:a]amix=inputs=2:normalize=0,volume=0.05,tremolo=f=0.2:d=0.4,afade=t=in:d=1.5,afade=t=out:st={D-2}:d=2[pad]"); lab.append("[pad]")
-    ch.append("".join(lab) + f"amix=inputs={len(lab)}:normalize=0:dropout_transition=0,alimiter=limit=0.9,apad,atrim=0:{D}[out]")
-    subprocess.check_call(["ffmpeg", "-nostdin", "-v", "error", "-y", *inp, "-filter_complex", ";".join(ch), "-map", "[out]", "-ar", "48000", "-ac", "2", str(out / "audio_mix.wav")])
-    subprocess.check_call(["ffmpeg", "-nostdin", "-v", "error", "-y", "-i", str(out / "silent.mp4"), "-i", str(out / "audio_mix.wav"),
+    if pj.get("pad", True):   # set "pad": false when a real music bed is used (scripts/music.py)
+        inp += ["-f", "lavfi", "-t", str(D), "-i", f"sine=f=110:d={D}:r=48000", "-f", "lavfi", "-t", str(D), "-i", f"sine=f=165:d={D}:r=48000"]
+        ch.append(f"[{n}:a][{n+1}:a]amix=inputs=2:normalize=0,volume=0.05,tremolo=f=0.2:d=0.4,afade=t=in:d=1.5,afade=t=out:st={D-2}:d=2[pad]"); lab.append("[pad]"); n += 2
+    if music.exists():
+        ch.append(f"[2:a]aresample=48000,volume={pj.get('music_volume', 0.55)}[mus];[mus][1:a]sidechaincompress=threshold=0.03:ratio=8:attack=20:release=400[duck]"); lab.append("[duck]")
+    ch.append("".join(lab) + f"amix=inputs={len(lab)}:normalize=0:dropout_transition=0,alimiter=limit=0.9,apad=whole_dur={D},atrim=0:{D}[out]")
+    subprocess.check_call(ff + inp + ["-filter_complex", ";".join(ch), "-map", "[out]", "-ar", "48000", "-ac", "2", str(out / "audio_mix.wav")])
+    subprocess.check_call(ff + ["-i", str(out / "silent.mp4"), "-i", str(out / "audio_mix.wav"),
                            "-af", "loudnorm=I=-14:TP=-1.5:LRA=7", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
                            "-shortest", "-movflags", "+faststart", str(out / "reel.mp4")])
-    print("mix ok ->", out / "reel.mp4")
+    print("mix ok ->", out / "reel.mp4", "(music ducked)" if music.exists() else "")
 
 
 # ---------------------------------------------------------------- QC
@@ -187,7 +197,7 @@ def step_qc(pj, pd, a):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("project"); ap.add_argument("--engine", default="edge", choices=["edge", "eleven"])
-    ap.add_argument("--voice"); ap.add_argument("--model"); ap.add_argument("--probe", action="store_true")
+    ap.add_argument("--voice"); ap.add_argument("--model"); ap.add_argument("--probe", action="store_true"); ap.add_argument("--template", help="custom scene template html (same seek/TIM/PROJECT contract)")
     ap.add_argument("--steps", default="tts,render,mix,qc")
     a = ap.parse_args(); pd = pathlib.Path(a.project).resolve(); pj = load_project(pd)
     for s in a.steps.split(","):

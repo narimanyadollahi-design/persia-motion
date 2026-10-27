@@ -29,11 +29,25 @@ python -X utf8 skills/persia-motion/scripts/reel.py my-project --engine edge    
 python -X utf8 skills/persia-motion/scripts/reel.py my-project --engine eleven      # ElevenLabs (key in .env.local)
 ```
 
+
+## What's new in 1.2
+- **Design per story:** the 7-scene template is a starting point; write a scene file for your subject and render it with `--template`. Example: `examples/story-detail-macro/` (viewfinder, focus pull, raking light, negative-prompt cross-out, loupe).
+- **Original music:** `scripts/music.py` synthesizes a music bed (plucked strings with real Persian quarter tones in Shur/Esfahan, drone, frame drum) that follows the scene arc; the mix ducks it under the voice.
+- **Pronunciation fixes:** add diacritics (e.g. `لِنزِ`, `مُوَرَب`) to a spoken line and regenerate only that line.
+- **Portrait end card:** set `brand.photo` to show a supplied photo in the end-card circle.
+- **No-CTA stories:** educational/story videos can end on the insight and a signature card.
+
+```bash
+python -X utf8 skills/persia-motion/scripts/reel.py my-project --engine eleven --steps tts,render --template my-scene.html
+python -X utf8 skills/persia-motion/scripts/music.py my-project --mode shur
+python -X utf8 skills/persia-motion/scripts/reel.py my-project --steps mix,qc --template my-scene.html
+```
+
 ## Customize
 This is the generic edition (neutral brand, fictional sample). Personalize `brand/brand.json`, `template/index.html` (scenes) and your project's `project.json`, or ask your agent to upgrade the skill with your brand identity and tone.
 
 ## Limits
-7 spoken lines/scenes + end card · monogram instead of image logo · no photo scenes yet · voice naturalness needs a human ear.
+7 spoken lines per project · photo scenes beyond the end-card portrait need a custom template · voice naturalness needs a human ear.
 
 ## Licenses
 Code: MIT. Font Vazirmatn: SIL OFL 1.1 (`skills/persia-motion/fonts/OFL.txt`). Inspired by the structure of a public Persian product teaser; no third-party footage or assets are included.
